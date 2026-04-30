@@ -83,8 +83,8 @@
 
         <form id="test-form">
             <div class="bg-neutral-900 border border-neutral-800 p-6 rounded-lg mb-8">
-                <label class="block text-sm font-bold text-neutral-400 mb-2">Discord Name & ID *</label>
-                <input type="text" id="participant-name" required class="input-field" placeholder="Name#1234">
+                <label class="block text-sm font-bold text-neutral-400 mb-2">Anmeldung = Rank & ID % Rufname *</label>
+                <input type="text" id="participant-name" required class="input-field" placeholder="z.B. PVT 1234 Shadow">
             </div>
 
             <div id="questions-container" class="space-y-6 mb-8"></div>
@@ -143,7 +143,6 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // DEINE ECHTE KONFIGURATION
         const firebaseConfig = {
           apiKey: "AIzaSyBsnbIf881WVr253n168gNki4dFfkR2DmY",
           authDomain: "schattenstaffel-exam.firebaseapp.com",
@@ -161,31 +160,32 @@
         let isSiteLocked = false;
         let isAdminMode = false;
 
+        // AKTUALISIERTE FRAGEN (TEXT UND MULTIPLE CHOICE)
         const fragenKatalog = [
-            "Was ist die primäre Aufgabe der Schattenstaffel?",
-            "Wie verhältst du dich bei falschen Befehlen?",
-            "Nenne 3 Funkcodes.",
-            "Verhalten im feindlichen Hinterhalt?",
-            "Teamarbeit Skala 1-10?",
-            "Bevorzugte Ausrüstung?",
-            "Bereit für strenge Regeln?",
-            "Umgang mit Kritik?",
-            "Erfahrung in anderen Staffeln?",
-            "Deine Stärken?",
-            "Deine Schwächen?",
-            "Zeit pro Woche?",
-            "Mikrofon vorhanden?",
-            "Dein Alter?",
-            "Serverregeln bekannt?",
-            "Reaktion auf Regelbruch?",
-            "Trainingsteilnahme?",
-            "Deine Erwartungen?",
-            "Wie hast du uns gefunden?",
-            "Anmerkungen?",
-            "Warum sollten wir DICH nehmen? (Ausführlich)"
+            { type: "text", frage: "Wer leitet das Auswahlverfahren?" },
+            { type: "text", frage: "Was ist die primäre Aufgabe der Schattenstaffel?" },
+            { type: "text", frage: "Wie verhältst du dich, wenn ein Kadett einen Y-Wing ausparkt und abheben möchte?" },
+            { type: "choice", frage: "Wer trägt die Rufkennung 'Schatten 1'?", options: ["SDO Spark", "CPO Kaze", "LT Dart", "ENS Kaze"] },
+            { type: "choice", frage: "Welcher Hersteller produziert den BTL-B Y-Wing?", options: ["Kuat-Triebwerkswerften", "Incom-Gesellschaft", "Koensayr-Produktionsgesellschaft", "Sienar-Flottensysteme"] },
+            { type: "choice", frage: "Wie viele Protonentorpedos kann ein BTL-B Y-Wing insgesamt mitführen?", options: ["6 Torpedos", "10 Torpedos", "12 Torpedos", "8 Torpedos"] },
+            { type: "text", frage: "Welchen Rang benötigt man mindestens um den Y-Wing auch zu fliegen wenn man nicht ein Teil der Schattenstaffel ist?" },
+            { type: "choice", frage: "Wer steuert den 360-Grad-Ionenturm im BTL-B Y-Wing?", options: ["Der Pilot", "Der Astromech", "Der Gunner", "Die Bodenstation"] },
+            { type: "choice", frage: "Was bedeutet der Funkcode '10-4'?", options: ["Notfall", "Verstanden", "Feindkontakt", "Rückzug"] },
+            { type: "text", frage: "Was ist die Standard-Formation beim Anflug?" },
+            { type: "text", frage: "Was ist die Höchstgeschwindigkeit des Y-Wings im All?" },
+            { type: "choice", frage: "Wofür steht die Abkürzung 'BTL' in der Bezeichnung?", options: ["Bombing-Target-Laser", "Basic Tactical Lander", "Bezeichung ohne Bedeutung", "B-Type Light"] },
+            { type: "text", frage: "Wo befindet sich der Astromech-Slot beim BTL-B?" },
+            { type: "choice", frage: "Welches Gas nutzen die Ionenkanonen?", options: ["Tibanna", "Xenon", "Isotop-5", "Kryo"] },
+            { type: "text", frage: "Was ist die primäre Bewaffnung gegen feindliche Jäger?" },
+            { type: "choice", frage: "Wie nennt man den Hyperraumantrieb des Y-Wings?", options: ["Klasse 1.0", "Klasse 2.0", "Klasse 0.5", "Klasse 4.0"] },
+            { type: "text", frage: "Welches System regeneriert die Schilde?" },
+            { type: "text", frage: "Was ist die Hauptaufgabe eines Bombers?" },
+            { type: "text", frage: "Was erwartest du von der Führungsebene dieser Staffel?" },
+            { type: "text", frage: "Der Bombenschacht deines Bombers klemmt, aber du musst die Feinde trotzdem irgendwie eliminieren. Was machst du?" },
+            { type: "text", frage: "Der MAJ der 501st befiehlt dir ein ziviles Dorf zu bombardieren? Würdest du den Befehl ausführen? Begründe deine Antwort!" },
+            { type: "text", frage: "Warum genau sollten wir dich in die Staffel aufnehmen? (Ausführlich)" }
         ];
 
-        // Global machen für HTML onclicks
         window.showScreen = (id) => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             const target = document.getElementById(id);
@@ -248,10 +248,17 @@
             btn.disabled = true;
             btn.innerText = "Sende Daten...";
             
-            const answers = fragenKatalog.map((f, i) => ({ 
-                f, 
-                a: document.getElementById(`q${i+1}`).value 
-            }));
+            // Neue Logik, die Checkboxen und Textfelder richtig ausliest
+            const answers = fragenKatalog.map((item, i) => {
+                let answerVal = "";
+                if (item.type === "text") {
+                    answerVal = document.getElementById(`q${i+1}`).value;
+                } else if (item.type === "choice") {
+                    const selected = document.querySelector(`input[name="q${i+1}"]:checked`);
+                    answerVal = selected ? selected.value : "";
+                }
+                return { f: item.frage, a: answerVal };
+            });
 
             try {
                 await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'submissions'), {
@@ -261,26 +268,42 @@
                 });
                 window.showScreen('success-screen');
             } catch(e) { 
-                alert("Fehler beim Senden. Firestore Regeln ok?"); 
+                alert("Fehler beim Senden."); 
                 btn.disabled = false; 
                 btn.innerText = "ANTWORTEN ÜBERMITTELN";
             }
         }
 
-        // Initialisierung Fragen
         const container = document.getElementById('questions-container');
-        fragenKatalog.forEach((f, i) => {
+        fragenKatalog.forEach((item, i) => {
             const div = document.createElement('div');
             div.className = "bg-neutral-900 border border-neutral-800 p-5 rounded-lg";
+            
+            // Entweder ein Textfeld oder Radio-Buttons einfügen
+            let inputHtml = "";
+            if (item.type === "text") {
+                inputHtml = `<textarea id="q${i+1}" required class="input-field min-h-[80px]" placeholder="Deine Antwort..."></textarea>`;
+            } else if (item.type === "choice") {
+                inputHtml = `<div class="space-y-3 mt-3">`;
+                item.options.forEach(opt => {
+                    inputHtml += `
+                        <label class="flex items-center space-x-3 cursor-pointer p-2 rounded hover:bg-neutral-800 transition">
+                            <input type="radio" name="q${i+1}" value="${opt}" required class="w-4 h-4 text-red-600 bg-neutral-950 border-neutral-700 focus:ring-red-600 focus:ring-2">
+                            <span class="text-neutral-300 font-medium">${opt}</span>
+                        </label>
+                    `;
+                });
+                inputHtml += `</div>`;
+            }
+
             div.innerHTML = `
-                <label class="block text-sm font-bold text-neutral-400 mb-3">${i+1}. ${f}</label>
-                <textarea id="q${i+1}" required class="input-field min-h-[80px]" placeholder="Antwort eingeben..."></textarea>
+                <label class="block text-sm font-bold text-neutral-400 mb-3">${i+1}. ${item.frage}</label>
+                ${inputHtml}
             `;
             container.appendChild(div);
         });
         document.getElementById('test-form').onsubmit = submitForm;
 
-        // Firebase Auth & Live-Status
         async function run() {
             try {
                 await signInAnonymously(auth);
@@ -291,17 +314,10 @@
                         statusEl.innerText = isSiteLocked ? "GESPERRT" : "OFFEN";
                         statusEl.style.color = isSiteLocked ? "#dc2626" : "#16a34a";
                     }
-                    
-                    if (isSiteLocked && !isAdminMode) {
-                        window.showScreen('locked-screen');
-                    } else if (!isAdminMode) {
-                        window.showScreen('start-screen');
-                    }
+                    if (isSiteLocked && !isAdminMode) window.showScreen('locked-screen');
+                    else if (!isAdminMode) window.showScreen('start-screen');
                 }, () => window.showScreen('start-screen'));
-            } catch(e) {
-                console.error(e);
-                window.showScreen('start-screen');
-            }
+            } catch(e) { window.showScreen('start-screen'); }
         }
         run();
     </script>
