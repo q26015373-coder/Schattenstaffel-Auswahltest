@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schattenstaffel - Auswahl Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Angepasste Scrollbar für den Dark Mode */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #171717; }
+        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+        
+        .screen { display: none; }
+        .screen.active { display: flex; flex-direction: column; }
+        
+        body {
+            background-color: #0a0a0a;
+            color: #e5e5e5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-image: radial-gradient(circle at center, #171717 0%, #0a0a0a 100%);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center">
+
+    <!-- Ladebildschirm -->
+    <div id="loading-screen" class="screen active min-h-screen justify-center items-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-red-600 mb-4"></div>
+        <h2 class="text-xl font-bold tracking-widest text-red-500">SYSTEME WERDEN GELADEN...</h2>
+    </div>
+
+    <!-- Startseite -->
+    <div id="start-screen" class="screen min-h-screen w-full justify-center items-center p-4">
+        <div class="max-w-md w-full bg-neutral-900 border border-neutral-800 p-8 rounded-lg shadow-2xl text-center">
+            <h1 class="text-3xl font-black text-red-600 tracking-wider mb-2">SCHATTENSTAFFEL</h1>
+            <p class="text-neutral-400 mb-8 font-semibold tracking-widest">AUSWAHL TEST</p>
+            
+            <button onclick="startTest()" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-3 px-4 rounded transition duration-200 mb-6">
+                TEST STARTEN
+            </button>
+            
+            <div class="mt-8 pt-6 border-t border-neutral-800">
+                <button onclick="showScreen('admin-login-screen')" class="text-xs text-neutral-600 hover:text-neutral-400 transition">
+                    [ Admin Zugang ]
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gesperrt Bildschirm -->
+    <div id="locked-screen" class="screen min-h-screen w-full justify-center items-center p-4">
+        <div class="max-w-md w-full bg-neutral-900 border border-red-900 p-8 rounded-lg shadow-2xl text-center">
+            <div class="text-red-600 mb-4">
+                <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+            </div>
+            <h1 class="text-2xl font-bold text-red-500 mb-2">TEST GESPERRT</h1>
+            <p class="text-neutral-400 mb-6">Die Rekrutierungsphase ist aktuell geschlossen. Es werden keine neuen Antworten angenommen.</p>
+            <button onclick="showScreen('start-screen')" class="text-sm text-neutral-500 hover:text-white">Zurück</button>
+        </div>
+    </div>
+
+    <!-- Test Bildschirm -->
+    <div id="test-screen" class="screen w-full max-w-4xl p-4 py-8">
+        <div class="flex justify-between items-center mb-8 border-b border-neutral-800 pb-4">
+            <h2 class="text-2xl font-bold text-red-600">Offizieller Test</h2>
+            <button onclick="showScreen('start-screen')" class="text-neutral-500 hover:text-white">Abbrechen</button>
+        </div>
+
+        <form id="test-form" onsubmit="submitTest(event)">
+            <!-- Basis Daten -->
+            <div class="bg-neutral-900 border border-neutral-800 p-6 rounded-lg mb-8">
+                <label class="block text-sm font-bold text-neutral-400 mb-2">Dein Ingame- oder Discord-Name *</label>
+                <input type="text" id="participant-name" required class="w-full bg-neutral-950 border border-neutral-700 rounded p-3 text-white focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600" placeholder="z.B. ShadowSniper99">
+            </div>
+
+            <!-- Fragen Container -->
+            <div id="questions-container" class="space-y-6 mb-8"></div>
+
+            <button type="submit" id="submit-btn" class="w-full bg-red-700 hover:bg-red-600 text-white font-bold py-4 px-4 rounded text-lg transition duration-200">
+                ANTWORTEN EINREICHEN
+            </button>
+        </form>
+    </div>
+
+    <!-- Erfolgreich abgegeben Bildschirm -->
+    <div id="success-screen" class="screen min-h-screen w-full justify-center items-center p-4">
+        <div class="max-w-md w-full bg-neutral-900 border border-neutral-800 p-8 rounded-lg shadow-2xl text-center">
+            <div class="text-green-500 mb-4">
+                <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <h1 class="text-2xl font-bold text-white mb-2">Daten übermittelt</h1>
+            <p class="text-neutral-400 mb-6">Deine Antworten wurden erfolgreich an die Führungsebene der Schattenstaffel gesendet.</p>
+            <button onclick="showScreen('start-screen')" class="bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-2 px-4 rounded">Zurück zum Start</button>
+        </div>
+    </div>
+
+    <!-- Admin Login -->
+    <div id="admin-login-screen" class="screen min-h-screen w-full justify-center items-center p-4">
+        <div class="max-w-sm w-full bg-neutral-900 border border-neutral-800 p-8 rounded-lg shadow-2xl">
+            <h2 class="text-xl font-bold text-white mb-6">Admin Login</h2>
+            <input type="password" id="admin-password" class="w-full bg-neutral-950 border border-neutral-700 rounded p-3 text-white mb-4 focus:outline-none focus:border-red-600" placeholder="Passwort eingeben">
+            <button onclick="loginAdmin()" class="w-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold py-3 px-4 rounded transition mb-4">
+                Einloggen
+            </button>
+            <button onclick="showScreen('start-screen')" class="w-full text-sm text-neutral-500 hover:text-white text-center">
+                Zurück
+            </button>
+        </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div id="admin-panel-screen" class="screen w-full max-w-6xl p-4 py-8">
+        <div class="flex justify-between items-center mb-8 border-b border-neutral-800 pb-4">
+            <h2 class="text-2xl font-bold text-red-600">Kommando-Zentrale (Admin)</h2>
+            <button onclick="logoutAdmin()" class="text-neutral-500 hover:text-white">Ausloggen</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Settings Card -->
+            <div class="bg-neutral-900 border border-neutral-800 p-6 rounded-lg md:col-span-1 h-fit">
+                <h3 class="text-lg font-bold text-white mb-4">Website Status</h3>
+                <div class="flex items-center justify-between p-4 bg-neutral-950 rounded border border-neutral-800 mb-4">
+                    <span class="text-sm font-semibold" id="status-text">Wird geladen...</span>
+                    <div id="status-indicator" class="w-3 h-3 rounded-full bg-neutral-600"></div>
+                </div>
+                
+                <button onclick="toggleLock(true)" class="w-full bg-red-900 hover:bg-red-800 text-white font-bold py-2 px-4 rounded mb-2 transition">
+                    Test Sperren (Schließen)
+                </button>
+                <button onclick="toggleLock(false)" class="w-full bg-green-900 hover:bg-green-800 text-white font-bold py-2 px-4 rounded transition">
+                    Test Freigeben (Öffnen)
+                </button>
+            </div>
+
+            <!-- Submissions List -->
+            <div class="bg-neutral-900 border border-neutral-800 p-6 rounded-lg md:col-span-2">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-white">Eingereichte Tests</h3>
+                    <button onclick="loadSubmissions()" class="text-sm text-blue-400 hover:text-blue-300">Aktualisieren</button>
+                </div>
+                
+                <div id="submissions-list" class="space-y-4">
+                    <p class="text-neutral-500 text-sm">Lade Daten...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Script & Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, setDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Initialisierung der globalen Variablen
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'schattenstaffel-test-app';
+        let currentUser = null;
+        let isSiteLocked = false;
+        let isAdminMode = false;
+        let unsubscribeStatus = null;
+
+        // Globale Funktionen fürs HTML zugänglich machen
+        window.showScreen = showScreen;
+        window.startTest = startTest;
+        window.submitTest = submitTest;
+        window.loginAdmin = loginAdmin;
+        window.logoutAdmin = logoutAdmin;
+        window.toggleLock = toggleLock;
+        window.loadSubmissions = loadSubmissions;
+        window.toggleAnswer = toggleAnswer;
+
+        // Dein fertiger Fragenkatalog
+        const fragenKatalog = [
+            "Was ist die primäre Aufgabe der Schattenstaffel?",
+            "Wie verhältst du dich, wenn ein Vorgesetzter einen Befehl gibt, der falsch erscheint?",
+            "Nenne 3 Funkcodes, die auf unserem Server verwendet werden.",
+            "Was machst du, wenn du in einen feindlichen Hinterhalt gerätst?",
+            "Frage 5 Platzhalter",
+            "Frage 6 Platzhalter",
+            "Frage 7 Platzhalter",
+            "Frage 8 Platzhalter",
+            "Frage 9 Platzhalter",
+            "Frage 10 Platzhalter",
+            "Frage 11 Platzhalter",
+            "Frage 12 Platzhalter",
+            "Frage 13 Platzhalter",
+            "Frage 14 Platzhalter",
+            "Frage 15 Platzhalter",
+            "Frage 16 Platzhalter",
+            "Frage 17 Platzhalter",
+            "Frage 18 Platzhalter",
+            "Frage 19 Platzhalter",
+            "Frage 20 Platzhalter",
+            "Warum genau sollten wir dich in die Staffel aufnehmen? (Ausführlich)"
+        ];
+
+        async function init() {
+            generateQuestions();
+            
+            // Authentifizierung sicherstellen
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                } catch (error) {
+                    console.error("Auth Error:", error);
+                }
+            };
+            
+            await initAuth();
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    listenToLockStatus();
+                }
+            });
+        }
+
+        // Live-Überprüfung des Sperrstatus
+        function listenToLockStatus() {
+            if (!currentUser) return;
+            if (unsubscribeStatus) unsubscribeStatus();
+
+            const statusDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'status');
+            
+            unsubscribeStatus = onSnapshot(statusDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    isSiteLocked = docSnap.data().locked;
+                } else {
+                    isSiteLocked = false;
+                }
+
+                updateAdminStatusUI();
+
+                if (isSiteLocked && !isAdminMode) {
+                    showScreen('locked-screen');
+                } else if (!isAdminMode) {
+                    if (document.getElementById('loading-screen').classList.contains('active')) {
+                         showScreen('start-screen');
+                    }
+                }
+            }, (error) => {
+                console.error("Error listening to status:", error);
+                if (document.getElementById('loading-screen').classList.contains('active')) {
+                    showScreen('start-screen');
+                }
+            });
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function startTest() {
+            if (isSiteLocked) {
+                showScreen('locked-screen');
+                return;
+            }
+            document.getElementById('test-form').reset();
+            showScreen('test-screen');
+            window.scrollTo(0,0);
+        }
+
+        function generateQuestions() {
+            const container = document.getElementById('questions-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            fragenKatalog.forEach((frage, index) => {
+                const questionNum = index + 1;
+                const div = document.createElement('div');
+                div.className = "bg-neutral-900 border border-neutral-800 p-6 rounded-lg";
+                div.innerHTML = `
+                    <label class="block font-bold text-neutral-300 mb-2">
+                        <span class="text-red-500 mr-2">${questionNum}.</span> ${frage}
+                    </label>
+                    <textarea id="q${questionNum}" required rows="3" class="w-full bg-neutral-950 border border-neutral-700 rounded p-3 text-white focus:outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 transition" placeholder="Deine Antwort..."></textarea>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function submitTest(e) {
+            e.preventDefault();
+            if (!currentUser) return;
+
+            const submitBtn = document.getElementById('submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = "WIRD GESENDET...";
+
+            const name = document.getElementById('participant-name').value;
+            const answers = [];
+
+            for (let i = 1; i <= 21; i++) {
+                answers.push({
+                    frage: fragenKatalog[i-1],
+                    antwort: document.getElementById(`q${i}`).value
+                });
+            }
+
+            try {
+                const submissionsRef = collection(db, 'artifacts', appId, 'public', 'data', 'submissions');
+                await addDoc(submissionsRef, {
+                    name: name,
+                    answers: answers,
+                    timestamp: new Date().toISOString(),
+                    userId: currentUser.uid
+                });
+                showScreen('success-screen');
+            } catch (error) {
+                console.error("Error saving doc: ", error);
+                alert("Fehler beim Senden. Bitte versuche es erneut.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = "ANTWORTEN EINREICHEN";
+            }
+        }
+
+        function loginAdmin() {
+            const pwd = document.getElementById('admin-password').value;
+            if (pwd === 'shadow927465') {
+                isAdminMode = true;
+                document.getElementById('admin-password').value = '';
+                showScreen('admin-panel-screen');
+                loadSubmissions();
+                updateAdminStatusUI();
+            } else {
+                alert('Falsches Passwort!');
+            }
+        }
+
+        function logoutAdmin() {
+            isAdminMode = false;
+            if (isSiteLocked) {
+                showScreen('locked-screen');
+            } else {
+                showScreen('start-screen');
+            }
+        }
+
+        async function toggleLock(lockedState) {
+            if (!currentUser || !isAdminMode) return;
+            try {
+                const statusDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'config', 'status');
+                await setDoc(statusDocRef, { locked: lockedState });
+            } catch (error) {
+                console.error("Error toggling lock:", error);
+            }
+        }
+
+        function updateAdminStatusUI() {
+            const statusText = document.getElementById('status-text');
+            const statusIndicator = document.getElementById('status-indicator');
+            if (!statusText || !statusIndicator) return;
+            
+            if (isSiteLocked) {
+                statusText.innerText = "GESPERRT";
+                statusText.className = "text-sm font-semibold text-red-500";
+                statusIndicator.className = "w-3 h-3 rounded-full bg-red-500";
+            } else {
+                statusText.innerText = "OFFEN";
+                statusText.className = "text-sm font-semibold text-green-500";
+                statusIndicator.className = "w-3 h-3 rounded-full bg-green-500";
+            }
+        }
+
+        async function loadSubmissions() {
+            if (!currentUser || !isAdminMode) return;
+            const listDiv = document.getElementById('submissions-list');
+            listDiv.innerHTML = '<p class="text-neutral-500">Lade Daten...</p>';
+
+            try {
+                const submissionsRef = collection(db, 'artifacts', appId, 'public', 'data', 'submissions');
+                const querySnapshot = await getDocs(submissionsRef);
+                let subs = [];
+                querySnapshot.forEach((doc) => {
+                    subs.push({ id: doc.id, ...doc.data() });
+                });
+                subs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                if (subs.length === 0) {
+                    listDiv.innerHTML = '<p class="text-neutral-500">Noch keine Tests eingereicht.</p>';
+                    return;
+                }
+
+                listDiv.innerHTML = '';
+                subs.forEach((sub) => {
+                    const date = new Date(sub.timestamp).toLocaleString('de-DE');
+                    const card = document.createElement('div');
+                    card.className = "bg-neutral-950 border border-neutral-800 rounded overflow-hidden";
+                    let answersHtml = sub.answers.map((ans, i) => `
+                        <div class="mb-3 border-b border-neutral-800 pb-3 last:border-0">
+                            <p class="text-xs text-neutral-500 font-bold mb-1">${i+1}. ${ans.frage}</p>
+                            <p class="text-sm text-neutral-200 whitespace-pre-wrap">${ans.antwort}</p>
+                        </div>
+                    `).join('');
+
+                    card.innerHTML = `
+                        <div class="p-4 flex justify-between items-center cursor-pointer hover:bg-neutral-800 transition" onclick="toggleAnswer('ans-${sub.id}')">
+                            <div>
+                                <span class="font-bold text-white mr-2">${sub.name}</span>
+                                <span class="text-xs text-neutral-500">${date}</span>
+                            </div>
+                            <svg class="w-5 h-5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                        <div id="ans-${sub.id}" class="hidden p-4 bg-neutral-900 border-t border-neutral-800">${answersHtml}</div>
+                    `;
+                    listDiv.appendChild(card);
+                });
+            } catch (error) {
+                listDiv.innerHTML = '<p class="text-red-500">Fehler beim Laden.</p>';
+            }
+        }
+
+        function toggleAnswer(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('hidden');
+        }
+
+        init();
+    </script>
+</body>
+</html>
