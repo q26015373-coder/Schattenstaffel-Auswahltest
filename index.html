@@ -160,7 +160,6 @@
         let isSiteLocked = false;
         let isAdminMode = false;
 
-        // AKTUALISIERTE FRAGEN (TEXT UND MULTIPLE CHOICE)
         const fragenKatalog = [
             { type: "text", frage: "Wer leitet das Auswahlverfahren?" },
             { type: "text", frage: "Was ist die primäre Aufgabe der Schattenstaffel?" },
@@ -248,7 +247,6 @@
             btn.disabled = true;
             btn.innerText = "Sende Daten...";
             
-            // Neue Logik, die Checkboxen und Textfelder richtig ausliest
             const answers = fragenKatalog.map((item, i) => {
                 let answerVal = "";
                 if (item.type === "text") {
@@ -279,7 +277,6 @@
             const div = document.createElement('div');
             div.className = "bg-neutral-900 border border-neutral-800 p-5 rounded-lg";
             
-            // Entweder ein Textfeld oder Radio-Buttons einfügen
             let inputHtml = "";
             if (item.type === "text") {
                 inputHtml = `<textarea id="q${i+1}" required class="input-field min-h-[80px]" placeholder="Deine Antwort..."></textarea>`;
