@@ -133,7 +133,7 @@
                     <h3 class="font-bold text-sm text-neutral-400 uppercase tracking-widest">Einsendungen</h3>
                     <button onclick="window.loadSubmissions()" class="text-xs text-blue-500 hover:underline">Aktualisieren</button>
                 </div>
-                <div id="submissions-list" class="space-y-3"></div>
+                <div id="submissions-list" class="space-y-3 max-h-96 overflow-y-auto"></div>
             </div>
         </div>
     </div>
@@ -172,7 +172,7 @@
             { type: "choice", frage: "Was bedeutet der Funkcode '10-4'?", options: ["Notfall", "Verstanden", "Feindkontakt", "Rückzug"] },
             { type: "text", frage: "Was ist die Standard-Formation beim Anflug?" },
             { type: "text", frage: "Was ist die Höchstgeschwindigkeit des Y-Wings im All?" },
-            { type: "choice", frage: "Wofür steht die Abkürzung 'BTL' in der Bezeichnung?", options: ["Bombing-Target-Laser", "Basic Tactical Lander", "Bezeichung ohne Bedeutung", "B-Type Light"] },
+            { type: "choice", frage: "Wofür steht die Abkürzung 'BTL' in der Bezeichnung?", options: ["Bombing-Target-Laser", "Basic Tactical Lander", "Bezeichnung ohne Bedeutung", "B-Type Light Bomber"] },
             { type: "text", frage: "Wo befindet sich der Astromech-Slot beim BTL-B?" },
             { type: "choice", frage: "Welches Gas nutzen die Ionenkanonen?", options: ["Tibanna", "Xenon", "Isotop-5", "Kryo"] },
             { type: "text", frage: "Was ist die primäre Bewaffnung gegen feindliche Jäger?" },
@@ -223,22 +223,32 @@
                     const data = d.data();
                     const div = document.createElement('div');
                     div.className = "p-4 bg-black/50 border border-neutral-800 rounded-lg hover:border-red-900 cursor-pointer transition";
+                    
+                    let answersHtml = "";
+                    if (data.answers && Array.isArray(data.answers)) {
+                        answersHtml = data.answers.map((a, i) => `
+                            <div class="mt-2 text-xs text-neutral-400 border-l-2 border-red-600 pl-2">
+                                <b class="text-neutral-200">${i+1}. ${a.f}</b><br>
+                                <span class="text-neutral-500">${a.a || '[Keine Antwort]'}</span>
+                            </div>
+                        `).join('');
+                    }
+                    
                     div.innerHTML = `
-                        <div class="flex justify-between items-center">
+                        <div class="flex justify-between items-center mb-2">
                             <span class="font-bold text-white">${data.name}</span>
                             <span class="text-[10px] text-neutral-600 bg-neutral-900 px-2 py-1 rounded">${new Date(data.timestamp).toLocaleString()}</span>
                         </div>
+                        <div class="max-h-48 overflow-y-auto">
+                            ${answersHtml}
+                        </div>
                     `;
-                    div.onclick = () => {
-                        const win = window.open("", "_blank");
-                        win.document.write(`<html><body style="background:#0a0a0a; color:white; font-family:sans-serif; padding:20px;">
-                            <h2 style="color:red">Akte: ${data.name}</h2>
-                            ${data.answers.map(a => `<p><b>${a.f}</b><br>${a.a}</p>`).join('<hr style="border:0; border-top:1px solid #333">')}
-                        </body></html>`);
-                    };
                     list.appendChild(div);
                 });
-            } catch(e) { list.innerHTML = "<p class='text-red-500'>Ladefehler.</p>"; }
+            } catch(e) { 
+                console.error(e);
+                list.innerHTML = "<p class='text-red-500'>Ladefehler.</p>"; 
+            }
         };
 
         async function submitForm(e) {
