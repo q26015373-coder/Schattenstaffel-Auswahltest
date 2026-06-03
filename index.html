@@ -240,7 +240,7 @@
         let currentSubmissionData = null;
         let currentPoints = {};
 
-        // Antwortschlüssel für automatische Bewertung
+        // Antwortschlüssel für automatische Bewertung (nur Multiple Choice)
         const correctAnswers = {
             3: "CPO Kaze",  // Frage 4
             4: "Koensayr-Produktionsgesellschaft",  // Frage 5
@@ -250,6 +250,24 @@
             11: "Bezeichnung ohne Bedeutung",  // Frage 12
             13: "Tibanna",  // Frage 14
             15: "Klasse 1.0"  // Frage 16
+        };
+
+        // Text-Fragen mit Musterlösung
+        const textAnswers = {
+            0: "Wer leitet das Auswahlverfahren?",
+            1: "Was ist die primäre Aufgabe der Schattenstaffel?",
+            2: "Wie verhältst du dich, wenn ein Kadett einen Y-Wing ausparkt und abheben möchte?",
+            6: "Welchen Rang benötigt man mindestens um den Y-Wing auch zu fliegen wenn man nicht ein Teil der Schattenstaffel ist?",
+            9: "Was ist die Standard-Formation beim Anflug?",
+            10: "Was ist die Höchstgeschwindigkeit des Y-Wings im All?",
+            12: "Wo befindet sich der Astromech-Slot beim BTL-B?",
+            14: "Was ist die primäre Bewaffnung gegen feindliche Jäger?",
+            16: "Welches System regeneriert die Schilde?",
+            17: "Was ist die Hauptaufgabe eines Bombers?",
+            18: "Was erwartest du von der Führungsebene dieser Staffel?",
+            19: "Der Bombenschacht deines Bombers klemmt, aber du musst die Feinde trotzdem irgendwie eliminieren. Was machst du?",
+            20: "Der MAJ der 501st befiehlt dir ein ziviles Dorf zu bombardieren? Würdest du den Befehl ausführen? Begründe deine Antwort!",
+            21: "Warum genau sollten wir dich in die Staffel aufnehmen? (Ausführlich)"
         };
 
         // Fragen die keine Punktevergabe haben (19 und 22 sind Indizes 18 und 21)
@@ -345,13 +363,16 @@
                     const answerClass = isChoice ? (isCorrect ? 'answer-correct' : 'answer-incorrect') : '';
                     const badge = isChoice ? (isCorrect ? '<span class="text-green-400 text-xs font-bold">✓ KORREKT</span>' : '<span class="text-red-400 text-xs font-bold">✗ FALSCH</span>') : '';
                     
+                    // Nur für Text-Fragen: Zeige Musterlösung an (ohne auto-Punkte)
+                    const solutionText = !isChoice && textAnswers[i] ? `<br><span class="text-neutral-500 text-xs">Richtig: ${textAnswers[i]}</span>` : '';
+                    
                     return `
                         <div class="p-4 bg-black/50 border border-neutral-700 rounded ${answerClass}">
                             <div class="flex justify-between items-start mb-2">
                                 <div class="flex-1">
                                     <b class="text-neutral-200">${i+1}. ${a.f}</b><br>
                                     <span class="text-neutral-400 text-sm">${a.a || '[Keine Antwort]'}</span>
-                                    ${isChoice ? `<br><span class="text-neutral-500 text-xs">Richtig: ${correctAnswers[i]}</span>` : ''}
+                                    ${isChoice ? `<br><span class="text-neutral-500 text-xs">Richtig: ${correctAnswers[i]}</span>` : solutionText}
                                 </div>
                                 ${hasNoPoints ? `
                                     <div class="ml-4">
