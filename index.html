@@ -252,6 +252,9 @@
             15: "Klasse 1.0"  // Frage 16
         };
 
+        // Fragen die keine Punktevergabe haben (19 und 22 sind Indizes 18 und 21)
+        const noPointsQuestions = [18, 21];
+
         const fragenKatalog = [
             { type: "text", frage: "Wer leitet das Auswahlverfahren?" },
             { type: "text", frage: "Was ist die primäre Aufgabe der Schattenstaffel?" },
@@ -309,8 +312,10 @@
             let total = 0;
             let max = 0;
             fragenKatalog.forEach((q, i) => {
-                max += 1;
-                total += currentPoints[i] ? 1 : 0;
+                if (!noPointsQuestions.includes(i)) {
+                    max += 1;
+                    total += currentPoints[i] ? 1 : 0;
+                }
             });
             document.getElementById('total-points').textContent = total;
             document.getElementById('max-points').textContent = max;
@@ -329,6 +334,7 @@
                 answersHtml = data.answers.map((a, i) => {
                     const isChoice = fragenKatalog[i] && fragenKatalog[i].type === 'choice';
                     const hasPoints = currentPoints[i];
+                    const hasNoPoints = noPointsQuestions.includes(i);
                     let isCorrect = false;
                     
                     if (isChoice) {
@@ -347,10 +353,14 @@
                                     <span class="text-neutral-400 text-sm">${a.a || '[Keine Antwort]'}</span>
                                     ${isChoice ? `<br><span class="text-neutral-500 text-xs">Richtig: ${correctAnswers[i]}</span>` : ''}
                                 </div>
-                                ${isChoice ? `<div class="ml-4">${badge}</div>` : `
+                                ${hasNoPoints ? `
+                                    <div class="ml-4">
+                                        <span class="px-3 py-1 bg-gray-700/60 border border-gray-600 rounded text-xs font-bold text-gray-300">Keine Punkte</span>
+                                    </div>
+                                ` : isChoice ? `<div class="ml-4">${badge}</div>` : `
                                     <div class="ml-4">
                                         <button type="button" onclick="window.togglePoints(${i})" class="px-3 py-1 ${hasPoints ? 'bg-green-900/60 border-green-700' : 'bg-neutral-700/60 border-neutral-600'} border rounded text-xs font-bold text-white transition">
-                                            ${hasPoints ? '✓ 1 Punkt' : '○ 0 Punkte'}
+                                            ${hasPoints ? '✓ RICHTIG' : '○ FALSCH'}
                                         </button>
                                     </div>
                                 `}
