@@ -77,6 +77,16 @@
             background-color: #713f12;
             color: #fdba74;
         }
+
+        .answer-correct {
+            border-left: 4px solid #22c55e;
+            background-color: #15803d/20;
+        }
+
+        .answer-incorrect {
+            border-left: 4px solid #ef4444;
+            background-color: #7f1d1d/20;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center">
@@ -181,25 +191,26 @@
 
     <!-- Modal für Einsendung Details -->
     <div id="submission-modal" class="modal-overlay">
-        <div class="bg-neutral-900 border border-neutral-800 rounded-lg p-6 max-w-3xl w-full max-h-96 overflow-y-auto mx-4">
+        <div class="bg-neutral-900 border border-neutral-800 rounded-lg p-6 max-w-3xl w-full max-h-[85vh] overflow-y-auto mx-4 flex flex-col">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-xl font-bold text-white" id="modal-title">Akte: </h3>
                 <button onclick="window.closeSubmissionModal()" class="text-neutral-500 hover:text-white text-2xl">&times;</button>
             </div>
 
-            <div id="modal-status" class="mb-4 flex gap-2">
-                <button onclick="window.updateSubmissionStatus('passed')" class="px-4 py-2 bg-green-900/40 hover:bg-green-900 text-white rounded border border-green-800 transition text-sm font-bold">✓ BESTANDEN</button>
-                <button onclick="window.updateSubmissionStatus('failed')" class="px-4 py-2 bg-red-900/40 hover:bg-red-900 text-white rounded border border-red-800 transition text-sm font-bold">✗ NICHT BESTANDEN</button>
-                <button onclick="window.deleteSubmission()" class="px-4 py-2 bg-neutral-700/40 hover:bg-neutral-700 text-white rounded border border-neutral-600 transition text-sm font-bold">🗑 LÖSCHEN</button>
+            <div id="modal-content" class="space-y-4 flex-1 overflow-y-auto mb-6"></div>
+
+            <!-- Punkte Summary -->
+            <div class="bg-neutral-800 border border-neutral-700 p-4 rounded mb-4">
+                <p class="text-sm text-neutral-400">Gesamtpunkte: <span id="total-points" class="font-bold text-white">0</span> / <span id="max-points" class="font-bold text-white">0</span></p>
             </div>
 
-            <div id="modal-content" class="space-y-4"></div>
-
-            <!-- Musterlösung -->
-            <div class="mt-6 pt-6 border-t border-neutral-700">
-                <h4 class="text-sm font-bold text-neutral-400 uppercase mb-3">Musterlösung bearbeiten</h4>
-                <div id="modal-solutions" class="space-y-3"></div>
-                <button onclick="window.saveSolutions()" class="w-full mt-4 bg-blue-900/40 hover:bg-blue-900 text-white p-2 rounded border border-blue-800 transition font-bold">LÖSUNGEN SPEICHERN</button>
+            <!-- Buttons am unten -->
+            <div id="modal-status" class="flex gap-2 justify-between border-t border-neutral-700 pt-4">
+                <div class="flex gap-2">
+                    <button onclick="window.updateSubmissionStatus('passed')" class="px-4 py-2 bg-green-900/40 hover:bg-green-900 text-white rounded border border-green-800 transition text-sm font-bold">✓ BESTANDEN</button>
+                    <button onclick="window.updateSubmissionStatus('failed')" class="px-4 py-2 bg-red-900/40 hover:bg-red-900 text-white rounded border border-red-800 transition text-sm font-bold">✗ NICHT BESTANDEN</button>
+                </div>
+                <button onclick="window.deleteSubmission()" class="px-4 py-2 bg-neutral-700/40 hover:bg-neutral-700 text-white rounded border border-neutral-600 transition text-sm font-bold">🗑 LÖSCHEN</button>
             </div>
         </div>
     </div>
@@ -227,6 +238,19 @@
         let isAdminMode = false;
         let currentSubmissionId = null;
         let currentSubmissionData = null;
+        let currentPoints = {};
+
+        // Antwortschlüssel für automatische Bewertung
+        const correctAnswers = {
+            3: "CPO Kaze",  // Frage 4
+            4: "Koensayr-Produktionsgesellschaft",  // Frage 5
+            5: "12 Torpedos",  // Frage 6
+            7: "Der Gunner",  // Frage 8
+            8: "Verstanden",  // Frage 9
+            11: "Bezeichnung ohne Bedeutung",  // Frage 12
+            13: "Tibanna",  // Frage 14
+            15: "Klasse 1.0"  // Frage 16
+        };
 
         const fragenKatalog = [
             { type: "text", frage: "Wer leitet das Auswahlverfahren?" },
@@ -281,44 +305,74 @@
             } catch(e) { alert("Fehler beim Ändern des Status."); }
         };
 
+        window.updatePointsDisplay = () => {
+            let total = 0;
+            let max = 0;
+            fragenKatalog.forEach((q, i) => {
+                max += 1;
+                total += currentPoints[i] ? 1 : 0;
+            });
+            document.getElementById('total-points').textContent = total;
+            document.getElementById('max-points').textContent = max;
+        };
+
         window.openSubmissionModal = async (docId, data) => {
             currentSubmissionId = docId;
             currentSubmissionData = data;
+            currentPoints = data.points || {};
             
             document.getElementById('modal-title').textContent = `Akte: ${data.name}`;
             
             // Antworten anzeigen
             let answersHtml = "";
             if (data.answers && Array.isArray(data.answers)) {
-                answersHtml = data.answers.map((a, i) => `
-                    <div class="p-3 bg-black/50 border border-neutral-700 rounded">
-                        <b class="text-neutral-200">${i+1}. ${a.f}</b><br>
-                        <span class="text-neutral-400 text-sm">${a.a || '[Keine Antwort]'}</span>
-                    </div>
-                `).join('');
+                answersHtml = data.answers.map((a, i) => {
+                    const isChoice = fragenKatalog[i] && fragenKatalog[i].type === 'choice';
+                    const hasPoints = currentPoints[i];
+                    let isCorrect = false;
+                    
+                    if (isChoice) {
+                        isCorrect = a.a === correctAnswers[i];
+                        currentPoints[i] = isCorrect ? 1 : 0;
+                    }
+                    
+                    const answerClass = isChoice ? (isCorrect ? 'answer-correct' : 'answer-incorrect') : '';
+                    const badge = isChoice ? (isCorrect ? '<span class="text-green-400 text-xs font-bold">✓ KORREKT</span>' : '<span class="text-red-400 text-xs font-bold">✗ FALSCH</span>') : '';
+                    
+                    return `
+                        <div class="p-4 bg-black/50 border border-neutral-700 rounded ${answerClass}">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex-1">
+                                    <b class="text-neutral-200">${i+1}. ${a.f}</b><br>
+                                    <span class="text-neutral-400 text-sm">${a.a || '[Keine Antwort]'}</span>
+                                    ${isChoice ? `<br><span class="text-neutral-500 text-xs">Richtig: ${correctAnswers[i]}</span>` : ''}
+                                </div>
+                                ${isChoice ? `<div class="ml-4">${badge}</div>` : `
+                                    <div class="ml-4">
+                                        <button type="button" onclick="window.togglePoints(${i})" class="px-3 py-1 ${hasPoints ? 'bg-green-900/60 border-green-700' : 'bg-neutral-700/60 border-neutral-600'} border rounded text-xs font-bold text-white transition">
+                                            ${hasPoints ? '✓ 1 Punkt' : '○ 0 Punkte'}
+                                        </button>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
             }
             
             document.getElementById('modal-content').innerHTML = answersHtml;
-            
-            // Musterlösungen anzeigen
-            let solutionsHtml = "";
-            if (data.answers && Array.isArray(data.answers)) {
-                solutionsHtml = data.answers.map((a, i) => `
-                    <div>
-                        <label class="text-xs text-neutral-400 font-bold">${i+1}. ${a.f}</label>
-                        <textarea class="w-full bg-neutral-800 border border-neutral-700 rounded p-2 text-sm text-white mt-1 solution-input" data-index="${i}" placeholder="Musterlösung...">${data.solutions && data.solutions[i] ? data.solutions[i] : ''}</textarea>
-                    </div>
-                `).join('');
-            }
-            
-            document.getElementById('modal-solutions').innerHTML = solutionsHtml;
-            
-            // Status Badge anzeigen
-            const statusEl = document.getElementById('modal-status');
-            const statusBadge = data.status ? `<span class="status-badge ${data.status === 'passed' ? 'status-passed' : data.status === 'failed' ? 'status-failed' : 'status-pending'}">Status: ${data.status === 'passed' ? 'BESTANDEN' : data.status === 'failed' ? 'NICHT BESTANDEN' : 'AUSSTEHEND'}</span>` : '';
-            statusEl.innerHTML = statusBadge + statusEl.innerHTML;
+            window.updatePointsDisplay();
             
             document.getElementById('submission-modal').classList.add('active');
+        };
+
+        window.togglePoints = (index) => {
+            if (currentPoints[index]) {
+                delete currentPoints[index];
+            } else {
+                currentPoints[index] = 1;
+            }
+            window.openSubmissionModal(currentSubmissionId, {...currentSubmissionData, points: currentPoints});
         };
 
         window.closeSubmissionModal = () => {
@@ -331,28 +385,14 @@
             if (!currentSubmissionId) return;
             try {
                 await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'submissions', currentSubmissionId), {
-                    status: status
+                    status: status,
+                    points: currentPoints
                 });
                 alert("Status aktualisiert!");
                 window.closeSubmissionModal();
                 window.loadSubmissions();
             } catch(e) {
                 alert("Fehler beim Aktualisieren des Status.");
-                console.error(e);
-            }
-        };
-
-        window.saveSolutions = async () => {
-            if (!currentSubmissionId) return;
-            const solutions = Array.from(document.querySelectorAll('.solution-input')).map(el => el.value);
-            try {
-                await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'submissions', currentSubmissionId), {
-                    solutions: solutions
-                });
-                alert("Musterlösungen gespeichert!");
-                window.loadSubmissions();
-            } catch(e) {
-                alert("Fehler beim Speichern der Lösungen.");
                 console.error(e);
             }
         };
@@ -428,7 +468,7 @@
                     answers,
                     timestamp: new Date().toISOString(),
                     status: 'pending',
-                    solutions: []
+                    points: {}
                 });
                 window.showScreen('success-screen');
             } catch(e) { 
