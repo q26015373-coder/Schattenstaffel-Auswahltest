@@ -134,7 +134,7 @@
 
         <form id="test-form">
             <div class="bg-neutral-900 border border-neutral-800 p-6 rounded-lg mb-8">
-                <label class="block text-sm font-bold text-neutral-400 mb-2">Anmeldung = Rank & ID % Rufname *</label>
+                <label class="block text-sm font-bold text-red-500 mb-2">Anmeldung: Rank/ID/Rufname *</label>
                 <input type="text" id="participant-name" required class="input-field" placeholder="z.B. PVT 1234 Shadow">
             </div>
 
@@ -215,6 +215,18 @@
         </div>
     </div>
 
+    <!-- Integriertes Custom Dialog Modal (Ersatz für blockierende alerts & confirms) -->
+    <div id="custom-dialog" class="modal-overlay animate-fade-in" style="z-index: 100;">
+        <div class="bg-neutral-900 border border-neutral-800 p-6 rounded-lg max-w-sm w-full text-center shadow-2xl mx-4">
+            <h3 id="dialog-title" class="text-lg font-bold text-white mb-2">Bestätigung</h3>
+            <p id="dialog-message" class="text-neutral-400 text-sm mb-6">Möchtest du das wirklich tun?</p>
+            <div class="flex justify-center gap-4">
+                <button id="dialog-cancel-btn" class="bg-neutral-800 hover:bg-neutral-700 text-white px-5 py-2 rounded text-sm font-bold transition">Abbrechen</button>
+                <button id="dialog-confirm-btn" class="bg-red-700 hover:bg-red-600 text-white px-5 py-2 rounded text-sm font-bold transition">Bestätigen</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -239,6 +251,51 @@
         let currentSubmissionId = null;
         let currentSubmissionData = null;
         let currentPoints = {};
+
+        // Helper für die Custom Dialoge (Gibt ein Promise zurück)
+        window.showCustomAlert = (title, message) => {
+            return new Promise((resolve) => {
+                document.getElementById('dialog-title').textContent = title;
+                document.getElementById('dialog-message').textContent = message;
+                const confirmBtn = document.getElementById('dialog-confirm-btn');
+                const cancelBtn = document.getElementById('dialog-cancel-btn');
+                
+                confirmBtn.textContent = "OK";
+                confirmBtn.className = "bg-red-700 hover:bg-red-600 text-white px-5 py-2 rounded text-sm font-bold transition";
+                cancelBtn.style.display = "none";
+                
+                document.getElementById('custom-dialog').classList.add('active');
+                
+                confirmBtn.onclick = () => {
+                    document.getElementById('custom-dialog').classList.remove('active');
+                    resolve(true);
+                };
+            });
+        };
+
+        window.showCustomConfirm = (title, message, confirmText = "Löschen") => {
+            return new Promise((resolve) => {
+                document.getElementById('dialog-title').textContent = title;
+                document.getElementById('dialog-message').textContent = message;
+                const confirmBtn = document.getElementById('dialog-confirm-btn');
+                const cancelBtn = document.getElementById('dialog-cancel-btn');
+                
+                confirmBtn.textContent = confirmText;
+                confirmBtn.className = "bg-red-700 hover:bg-red-600 text-white px-5 py-2 rounded text-sm font-bold transition";
+                cancelBtn.style.display = "block";
+                
+                document.getElementById('custom-dialog').classList.add('active');
+                
+                confirmBtn.onclick = () => {
+                    document.getElementById('custom-dialog').classList.remove('active');
+                    resolve(true);
+                };
+                cancelBtn.onclick = () => {
+                    document.getElementById('custom-dialog').classList.remove('active');
+                    resolve(false);
+                };
+            });
+        };
 
         // Antwortschlüssel für automatische Bewertung (nur Multiple Choice)
         const correctAnswers = {
@@ -267,8 +324,8 @@
             20: "Ja da der MAJ mir solche Befehle erteilen darf"
         };
 
-        // Fragen die keine Punktevergabe haben (19 und 22 sind Indizes 18 und 21)
-        const noPointsQuestions = [18, 21];
+        // Fragen die keine Punktevergabe haben (1. Frage [Index 0], 19 und 22 [Indizes 18 und 21], sowie Feedback [Index 22])
+        const noPointsQuestions = [0, 18, 21, 22];
 
         const fragenKatalog = [
             { type: "text", frage: "Wer leitet das Auswahlverfahren?" },
@@ -288,11 +345,12 @@
             { type: "text", frage: "Was ist die primäre Bewaffnung gegen feindliche Jäger?" },
             { type: "choice", frage: "Wie nennt man den Hyperraumantrieb des Y-Wings?", options: ["Klasse 1.0", "Klasse 2.0", "Klasse 0.5", "Klasse 4.0"] },
             { type: "text", frage: "Welches System regeneriert die Schilde?" },
-            { type: "text", frage: "Was ist die Hauptaufgabe eines Bombers?" },
+            { type: "text", frage: "Was ist die Hauptaufgabe eines Bomber?" },
             { type: "text", frage: "Was erwartest du von der Führungsebene dieser Staffel?" },
             { type: "text", frage: "Der Bombenschacht deines Bombers klemmt, aber du musst die Feinde trotzdem irgendwie eliminieren. Was machst du?" },
             { type: "text", frage: "Der MAJ der 501st befiehlt dir ein ziviles Dorf zu bombardieren? Würdest du den Befehl ausführen? Begründe deine Antwort!" },
-            { type: "text", frage: "Warum genau sollten wir dich in die Staffel aufnehmen? (Ausführlich)" }
+            { type: "text", frage: "Warum genau sollten wir dich in die Staffel aufnehmen? (Ausführlich)" },
+            { type: "text", frage: "Feedback zum Test" }
         ];
 
         window.showScreen = (id) => {
@@ -307,12 +365,14 @@
             window.scrollTo(0,0);
         };
 
-        window.loginAdmin = () => {
+        window.loginAdmin = async () => {
             if (document.getElementById('admin-password').value === 'shadow927465') {
                 isAdminMode = true;
                 window.showScreen('admin-panel-screen');
                 window.loadSubmissions();
-            } else { alert("Zugriff verweigert."); }
+            } else { 
+                await window.showCustomAlert("Zugriff verweigert", "Das eingegebene Passwort ist inkorrekt."); 
+            }
         };
 
         window.logoutAdmin = () => { isAdminMode = false; window.showScreen('start-screen'); };
@@ -320,7 +380,9 @@
         window.toggleLock = async (val) => {
             try {
                 await setDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'config', 'status'), { locked: val });
-            } catch(e) { alert("Fehler beim Ändern des Status."); }
+            } catch(e) { 
+                await window.showCustomAlert("Fehler", "Status konnte nicht geändert werden."); 
+            }
         };
 
         window.updatePointsDisplay = () => {
@@ -416,25 +478,26 @@
                     status: status,
                     points: currentPoints
                 });
-                alert("Status aktualisiert!");
+                await window.showCustomAlert("Erfolg", "Status wurde erfolgreich aktualisiert!");
                 window.closeSubmissionModal();
                 window.loadSubmissions();
             } catch(e) {
-                alert("Fehler beim Aktualisieren des Status.");
+                await window.showCustomAlert("Fehler", "Fehler beim Aktualisieren des Status.");
                 console.error(e);
             }
         };
 
         window.deleteSubmission = async () => {
             if (!currentSubmissionId) return;
-            if (!confirm("Wirklich löschen?")) return;
+            const confirmed = await window.showCustomConfirm("Einsendung löschen", "Möchtest du diese Akte wirklich unwiderruflich löschen?", "Ja, löschen");
+            if (!confirmed) return;
             try {
                 await deleteDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'submissions', currentSubmissionId));
-                alert("Einsendung gelöscht!");
+                await window.showCustomAlert("Gelöscht", "Einsendung erfolgreich gelöscht.");
                 window.closeSubmissionModal();
                 window.loadSubmissions();
             } catch(e) {
-                alert("Fehler beim Löschen.");
+                await window.showCustomAlert("Fehler", "Fehler beim Löschen.");
                 console.error(e);
             }
         };
@@ -448,7 +511,6 @@
                 snap.forEach(d => {
                     const data = d.data();
                     const div = document.createElement('div');
-                    div.className = "p-4 bg-black/50 border rounded-lg cursor-pointer transition hover:border-red-900";
                     
                     const statusClass = data.status === 'passed' ? 'border-green-900 bg-green-900/10' : data.status === 'failed' ? 'border-red-900 bg-red-900/10' : 'border-neutral-800';
                     div.className = `p-4 bg-black/50 border rounded-lg cursor-pointer transition hover:border-red-900 ${statusClass}`;
@@ -479,6 +541,16 @@
             btn.disabled = true;
             btn.innerText = "Sende Daten...";
             
+            const participantName = document.getElementById('participant-name').value.trim();
+            
+            // Strikte Verpflichtung zur Eingabe der Anmeldung
+            if (!participantName) {
+                await window.showCustomAlert("Anmeldung erforderlich", "Du musst das Feld 'Anmeldung: Rank/ID/Rufname' ausfüllen, bevor du den Test absenden kannst.");
+                btn.disabled = false;
+                btn.innerText = "ANTWORTEN ÜBERMITTELN";
+                return;
+            }
+            
             const answers = fragenKatalog.map((item, i) => {
                 let answerVal = "";
                 if (item.type === "text") {
@@ -492,7 +564,7 @@
 
             try {
                 await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'submissions'), {
-                    name: document.getElementById('participant-name').value,
+                    name: participantName,
                     answers,
                     timestamp: new Date().toISOString(),
                     status: 'pending',
@@ -500,7 +572,7 @@
                 });
                 window.showScreen('success-screen');
             } catch(e) { 
-                alert("Fehler beim Senden."); 
+                await window.showCustomAlert("Fehler beim Senden", "Bitte überprüfe deine Netzwerkverbindung."); 
                 btn.disabled = false; 
                 btn.innerText = "ANTWORTEN ÜBERMITTELN";
             }
